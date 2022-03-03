@@ -1,0 +1,166 @@
+print_float_precision(16)
+
+# for shamir et al
+# program.use_edabit(True)
+# for replicated-ring et al
+program.use_split(3)
+# for variance/median et al
+program.use_trunc_pr = True
+
+n_users = 2
+if len(program.args) > 1:
+    n_users = int(program.args[1])
+user_base = 0
+
+size = 10000000
+if len(program.args) > 2:
+    size = int(program.args[2])
+
+batch_size_base = 10000
+if len(program.args) > 3:
+    batch_size_base = int(program.args[3])
+
+n_threads = 16
+if len(program.args) > 4:
+    n_threads = int(program.args[4])
+
+n_batches = 1
+batch_size = size
+if size > batch_size_base:
+    batch_size = batch_size_base
+    n_batches = size // batch_size
+
+total_size = size * n_users
+inputs = Matrix(n_users, size, sfloat)
+
+for i in range(n_users):
+    @for_range_opt(n_batches)
+    def _(batch):
+        inputs[i].assign(sfloat.get_input_from(i, size=batch_size), batch * batch_size)
+
+
+# find median with binary search from two sorted arrays -- O(log(m+n))
+def median_binary_search_from_sorted_arrays(a1, a2):
+    m, n = len(a1), len(a2)
+    len_total = m + n
+    if len_total % 2 == 1:
+        k = MemValue((len_total + 1) // 2)
+        find_two = False
+    else:
+        k = MemValue(len_total // 2)
+        find_two = True
+    index1 = MemValue(0)
+    index2 = MemValue(0)
+    median = MemValue(sfloat(0))
+
+    def min(a, b):
+        m = MemValue(a)
+
+        @if_((a > b).reveal())
+        def _():
+            m.write(b)
+
+        return m
+
+    @do_while
+    def _():
+        # 正常迭代
+        pivot_index1 = min(index1 + k // 2 - 1, m - 1)
+        pivot_index2 = min(index2 + k // 2 - 1, n - 1)
+        pivot1 = a1[pivot_index1]
+        pivot2 = a2[pivot_index2]
+
+        @if_e((pivot1 <= pivot2).reveal())
+        def _():
+            k.write(k - (pivot_index1 - index1 + 1))
+            index1.write(pivot_index1 + 1)
+
+        @else_
+        def _():
+            k.write(k - (pivot_index2 - index2 + 1))
+            index2.write(pivot_index2 + 1)
+
+        # 边界情况
+        @if_(index1 == m)
+        def _():
+            if find_two:
+                median.write((a2[index2 + k - 1] + a2[index2 + k]) / 2)
+                break_loop()
+            else:
+                median.write(a2[index2 + k - 1])
+                break_loop()
+
+        @if_(index2 == n)
+        def _():
+            if find_two:
+                median.write((a1[index1 + k - 1] + a1[index1 + k]) / 2)
+                break_loop()
+            else:
+                median.write(a1[index1 + k - 1])
+                break_loop()
+
+        # 正常情况最后一步
+        @if_(k == 1)
+        def _():
+            @if_e((a1[index1] <= a2[index2]).reveal())
+            def _():
+                first = a1[index1]
+                if not find_two:
+                    median.write(first)
+                    break_loop()
+
+                second = MemValue(sfloat(0))
+
+                @if_e(index1 + 1 <= m - 1)
+                def _():
+                    second.write(min(a1[index1 + 1], a2[index2]))
+
+                @else_
+                def _():
+                    second.write(min(a2[index2], a2[index2 + 1]))
+
+                median.write((first + second) / 2)
+                break_loop()
+
+            @else_
+            def _():
+                first = a2[index2]
+                if not find_two:
+                    median.write(first)
+                    break_loop()
+
+                second = MemValue(sfloat(0))
+
+                @if_e(index2 + 1 <= n - 1)
+                def _():
+                    second.write(min(a1[index1], a2[index2 + 1]))
+
+                @else_
+                def _():
+                    second.write(min(a1[index1], a1[index1 + 1]))
+
+                median.write((first + second) / 2)
+                break_loop()
+
+        ret = MemValue(1)
+
+        @if_(index1 == m)
+        def _():
+            ret.write(0)
+
+        @if_(index2 == n)
+        def _():
+            ret.write(0)
+
+        @if_(k == 1)
+        def _():
+            ret.write(0)
+
+        return ret
+
+    return median
+
+
+median = median_binary_search_from_sorted_arrays(inputs[0], inputs[1])
+
+print_ln("median: %s", median.reveal())
