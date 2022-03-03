@@ -1,0 +1,36 @@
+print_float_precision(16)
+
+# for shamir et al
+# program.use_edabit(True)
+# for replicated-ring et al
+program.use_split(3)
+
+n_users = 2
+if len(program.args) > 1:
+    n_users = int(program.args[1])
+
+inputs = Array(n_users, sfloat)
+for i in range(n_users):
+    inputs[i] = sfloat.get_input_from(i)
+
+
+# max of Array
+def max_in_array(array):
+    if array.length == 1:
+        return array[0]
+
+    max = MemValue(array[0])
+
+    @for_range(1, array.length)
+    def _(i):
+        @if_((array[i] > max).reveal())
+        def _():
+            max.write(array[i])
+
+    return max
+
+
+max = max_in_array(inputs)
+
+print_ln('inputs: %s', inputs[:].reveal())
+print_ln('result: %s', max.reveal())
