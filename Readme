@@ -74,8 +74,6 @@ MP-SPDZ/replicated-ring（本地）	三方-17分7秒	两方-44秒/三方-1分18�
 信通院测试主要结果：
 https://openmpc.com/article/182
 
-image.png
-
 
 
 联合中位数算法总结：
@@ -172,7 +170,7 @@ cd MP-SPDZ-runtime
 
 
 测试数据制造脚本
-test_make_data.py
+make_data.py
 
 
 
