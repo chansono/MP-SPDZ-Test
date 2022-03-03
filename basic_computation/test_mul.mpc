@@ -1,0 +1,57 @@
+print_float_precision(32)
+
+# for shamir et al
+# program.use_edabit(True)
+# for replicated-ring et al
+program.use_split(3)
+
+n_users = 2
+if len(program.args) > 1:
+    n_users = int(program.args[1])
+
+size = 10000000
+if len(program.args) > 2:
+    size = int(program.args[2])
+
+batch_size_base = 10000
+if len(program.args) > 3:
+    batch_size_base = int(program.args[3])
+
+n_threads = 16
+if len(program.args) > 4:
+    n_threads = int(program.args[4])
+
+n_batches = 1
+batch_size = size
+if size > batch_size_base:
+    batch_size = batch_size_base
+    n_batches = size // batch_size
+
+inputs = Matrix(n_users, size, sfloat)
+
+
+@for_range_opt(n_batches)
+def _(batch):
+    for i in range(n_users):
+        inputs[i].assign(sfloat.get_input_from(i, size=batch_size), batch * batch_size)
+
+
+@for_range_opt_multithread(n_threads, n_batches)
+def _(batch):
+    result_batch = []
+    for i in range(n_users):
+        input_batch = inputs[i].get_vector(base=batch * batch_size, size=batch_size)
+        if i == 0:
+            result_batch = input_batch
+        else:
+            result_batch *= input_batch
+    result_batch.reveal()
+    # print_ln("result: %s", result_batch.reveal())
+
+# inp0 = MultiArray(size, sfloat)
+# inp1 = MultiArray(size, sfloat)
+# inp0.assign(inputs[0])
+# inp1.assign(inputs[1])
+#
+# result_batch = inp0.mul(inp1)
+# result_batch.reveal()
