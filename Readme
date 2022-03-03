@@ -1,0 +1,247 @@
+总览
+主要测试的安全模型为“诚实大多数--半诚实”，各个安全模型具体情况大致如下：
+
+1）“诚实大多数--半诚实”：最优协议为“replicated-ring”，其他协议的性能都远远低于该协议，shamir协议的性能消耗是其2倍以上。
+
+2）“诚实大多数--恶意”：性能消耗是“诚实大多数--半诚实”的10倍以上
+
+3）“不诚实大多数--半诚实”：性能消耗是“诚实大多数--半诚实”的10倍以上
+
+4）“不诚实大多数--恶意”：性能极差
+
+
+
+主要在“诚实大多数--半诚实”模型下进行MP-SPDZ框架与信通院平均测试结果的协议性能比较：
+
+（mpc文件优化后，MP-SPDZ下“replicated-ring”协议在本地16线程的性能达到最优，后续TCF物理机环境继续测试）
+
+框架/协议	基础运算
+联合统计
+
+
+
+
+
+加法
+
+（千万行浮点数）
+
+乘法
+
+（千万行浮点数）
+
+比较
+
+（两方-千万行浮点数）
+
+最大值
+
+（千万行浮点数）
+
+方差
+
+（千万行浮点数）
+
+中位数
+
+（千万行浮点数）
+
+联合建模
+
+（40万train-10万test-2000维特征随机取900维）
+
+联合预测	特征工程	
+
+信通院测试平均耗时	两方-5分59秒/三方-7分56秒	两方-5分56秒/三方-8分35秒	6分49秒	两方-5分33秒/三方-6分09秒	两方-3分10秒/三方-3分26秒	两方-8分40秒/三方-8分56秒	
+
+
+
+
+信通院测试最优耗时	两方-20秒/三方-18秒	两方-18秒/三方-21秒	22秒	两方-3秒/三方-4秒	两方-4秒/三方-3秒	两方-41秒/三方-43秒	
+
+
+
+
+MP-SPDZ/replicated-ring（本地）	三方-17分7秒	两方-44秒/三方-1分18秒	31秒	两方-7秒/三方-7秒	两方-8秒/三方-8秒	两方-48秒	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+（测试详细结果见子页面）
+
+信通院测试主要结果：
+https://openmpc.com/article/182
+
+image.png
+
+
+
+联合中位数算法总结：
+联合中位数算法针对“两方-本地已排序后的数组”采用“二分法”降低时间复杂度到logN，总耗时约48秒。
+
+“三方中位数”可以采用相似的三分法（N路查找法），估计总耗时约1分钟左右，暂不实现。
+
+
+
+环境
+机器环境
+
+节点：
+计算节点0：192.168.3.31
+计算节点1：192.168.3.32
+计算节点2：192.168.3.33
+输入节点3：192.168.3.21
+输入节点4：192.168.3.22
+输入节点5：192.168.3.12
+
+
+协议执行文件与动态链接包
+image.png
+
+LIBRARY系统配置
+（参见https://www.cnblogs.com/youxin/p/5116243.html）：
+
+#export LD_LIBRARY_PATH=/where/you/install/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/home/vtu/MP-SPDZ-runtime/:/home/vtu/MP-SPDZ-runtime:local/lib/:$LD_LIBRARY_PATH
+
+sudo ldconfig
+系统依赖（参考readme文档）
+可选，视机器环境而定，ubuntu如下：
+
+apt-get install libboost-dev libboost-thread-dev libntl-dev libsodium-dev libssl-dev libtool m4 texinfo yasm
+替换libboost_system.so包的版本为1.65.1
+#放置在例如如下的位置
+/usr/lib64/libboost_system.so.1.65.1
+
+
+
+
+编译打包
+进入工程目录
+
+# cd $(MP-SPDZ-DIR)
+cd /workspace/opensource/mpc/MP-SPDZ
+删除旧数据
+
+rm -rf Player-Data/*
+rm -rf Programs/Schedules/*
+rm -rf Programs/Bytecode/*
+SSL准备：
+
+Scripts/setup-ssl.sh 6
+编译环境造数据（可选）：
+
+./test_make_data.py -b 0 -n 3 -s 1000000
+编译MPC文件：
+
+./compile.py -R 64 test_add 3 1000000
+打成独立大包：
+
+rm -rf ../MP-SPDZ-runtime/Player-Data/
+rm -rf ../MP-SPDZ-runtime/Programs/*
+cp -r Player-Data/ ../MP-SPDZ-runtime/
+cp -r Programs/Bytecode/ ../MP-SPDZ-runtime/Programs/
+cp -r Programs/Schedules/ ../MP-SPDZ-runtime/Programs/
+rm -rf ../MP-SPDZ-runtime.tar.gz
+tar -zcvf ../MP-SPDZ-runtime.tar.gz ../MP-SPDZ-runtime/
+
+
+执行过程
+先将大包“MP-SPDZ-runtime.tar.gz”拷贝到每一个节点。
+
+进入工作目录：
+
+cd /home/vtu
+各运行节点解压打包：
+
+cd /home/vtu
+rm -rf MP-SPDZ-runtime
+tar -zxvf MP-SPDZ-runtime.tar.gz
+chown -R vtu:vtu MP-SPDZ-runtime.tar.gz
+cd MP-SPDZ-runtime
+各运行节点造数据（可选）：
+
+./test_make_data.py -b 0 -n 3 -s 1000000
+各运行节点执行：
+
+./replicated-ring-party.x --hostname 192.168.3.31 --my-port 5000 -p <节点序号> test_add-1000000
+
+
+
+
+测试数据制造脚本
+test_make_data.py
+
+#!/usr/bin/env python3
+
+import random
+from optparse import OptionParser
+
+
+def main():
+    usage = "usage: %prog [options] "
+    parser = OptionParser(usage=usage)
+
+    parser.add_option("-n", "--num_players", action="store", type="int", dest="num_players", default=3,
+                      help="number of input players (default: 3)")
+    parser.add_option("-s", "--size", action="store", type="int", dest="size", default=10000000,
+                      help="size of input computation numbers (default: 1000000)")
+    parser.add_option("-b", "--batch_size", action="store", type="int", dest="batch_size", default=0,
+                      help="batch size (default: equals to the size)")
+    parser.add_option("-t", "--type", action="store", type="string", dest="type", default="float",
+                      help="type of data (default: float), support float/int for now")
+
+    options, args = parser.parse_args()
+
+    for i in range(0, options.num_players):
+        file_pre = "./Player-Data/Input-P" + str(i) + "-"
+        write_file(file_pre, options)
+
+
+def write_file(file_pre, options):
+    n_batches = 1
+    batch_size = options.batch_size
+    if options.batch_size <= 0:
+        batch_size = options.size
+    first_batch_size = batch_size
+    if options.size > batch_size:
+        first_batch_size = batch_size
+        n_batches, mod = divmod(options.size, batch_size)
+        if mod != 0:
+            first_batch_size += mod
+
+    for batch in range(n_batches):
+        batch_input_file = open(file_pre + str(batch), "w", encoding="utf-8")
+        curr_batch_size = batch_size if batch > 0 else first_batch_size
+        for i in range(curr_batch_size):
+            if i != 0:
+                batch_input_file.write("\n")
+            if options.type == "float":
+                rand = random.uniform(0, 10000)
+            elif options.type == "int":
+                rand = random.randint(0, 10000)
+            else:
+                print("illegal data type")
+                return -1
+            batch_input_file.write(str(rand))
+        batch_input_file.close()
+
+
+if __name__ == '__main__':
+    main()
+
+
+
+
