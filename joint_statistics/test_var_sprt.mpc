@@ -1,0 +1,34 @@
+print_float_precision(16)
+
+# for shamir et al
+# program.use_edabit(True)
+# for replicated-ring et al
+program.use_split(3)
+# for variance/median et al
+program.use_trunc_pr = True
+
+n_users = 2
+if len(program.args) > 1:
+    n_users = int(program.args[1])
+
+size = 10000000
+if len(program.args) > 2:
+    size = int(program.args[2])
+
+inputs = Matrix(n_users, 2, sfloat)
+for i in range(n_users):
+    inputs[i].input_from(i)
+
+# print_ln('inputs 0: %s', inputs[0][:].reveal())
+# print_ln('inputs 1: %s', inputs[1][:].reveal())
+# print_ln('inputs 2: %s', inputs[2][:].reveal())
+
+final_sum = sum(inputs[i][0] for i in range(n_users))
+sqr_sum = sum(inputs[i][1] for i in range(n_users))
+
+mean = final_sum / (n_users * size)
+var = sqr_sum / (n_users * size) - mean ** 2
+
+print_ln('sum: %s', final_sum.reveal())
+print_ln('mean: %s', mean.reveal())
+print_ln('variance: %s', var.reveal())
