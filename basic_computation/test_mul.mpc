@@ -47,11 +47,3 @@ def _(batch):
             result_batch *= input_batch
     result_batch.reveal()
     # print_ln("result: %s", result_batch.reveal())
-
-# inp0 = MultiArray(size, sfloat)
-# inp1 = MultiArray(size, sfloat)
-# inp0.assign(inputs[0])
-# inp1.assign(inputs[1])
-#
-# result_batch = inp0.mul(inp1)
-# result_batch.reveal()
