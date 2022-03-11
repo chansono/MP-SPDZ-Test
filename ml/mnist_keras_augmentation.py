@@ -94,8 +94,8 @@ x_test, y_test = prepare_dataset(x_test_origin, y_test_origin)
 # define data preparation
 datagen = ImageDataGenerator(
     rotation_range=20,
-    width_shift_range=0.1,
-    height_shift_range=0.1,
+    width_shift_range=0.05,
+    height_shift_range=0.05,
     zoom_range=0.1,
     rescale=1. / 255)
 
